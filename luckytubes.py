@@ -54,18 +54,33 @@ def search(vidname):
     ext = info['ext']
 
     print "Video URL: " + feed.entry[0].media.player.url
-    filename = "%s%s_%s.%s" % (CACHE,simpletitle,id,ext)
+    basename = "%s%s_%s." % (CACHE,simpletitle,id)
+    filename = basename+ext
+    finalname = basename+"mp3"
 #    print [x.url for x in feed.entry[0].media.content if 'rtsp' in x.url]
 #    return
-    if not os.path.exists(filename):
-      print "Downloading " + filename
-      pid = os.fork()
-      if pid > 0:
-        sys.exit(0)
-      print "PID: %d" % os.getpid()
-      urllib.urlretrieve(url, filename)[0]
+    finalOK = True
+    if not os.path.exists(finalname):
+      if not os.path.exists(filename):
+        print "Downloading " + filename
+        pid = os.fork()
+        if pid > 0:
+          sys.exit(0)
+          print "PID: %d" % os.getpid()
+          urllib.urlretrieve(url, filename)[0]
 
-    os.system("amarok " + filename)
+      print "Converting " + finalname
+      if os.system("ffmpeg -i %s %s" % (filename, finalname)) != 0:
+        finalOK = False
+      else:
+        os.remove(filename)
+    else:
+      os.remove(filename)
+    
+    if finalOK:
+      os.system("amarok " + finalname)
+    else:
+      os.system("amarok " + filename)
 
 
 if __name__ == "__main__":
