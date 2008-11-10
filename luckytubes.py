@@ -2,15 +2,17 @@
 """LuckyTubes -- play music off YouTube by feeling lucky!"""
 
 import os
+import os.path
 import sys
 import urllib
 import youtubedl
 
 import gdata.youtube.service
 
-CACHE="/home/scott/.luckytubes/"
+CACHE=os.path.join(os.environ["HOME"],".luckytubes")
 VIDEO_SEARCH_URL="http://gdata.youtube.com/feeds/api/videos?q=%s&max-results=10&v=2"
 
+# TODO: Package the code into a class instead of icky globals
 service = gdata.youtube.service.YouTubeService()
 ex = youtubedl.YoutubeIE()
 
@@ -66,6 +68,7 @@ def search(vidname):
       # (Firefox-like file.part + mv file.part file should do)
       if not os.path.exists(filename):
         print "Downloading " + filename
+        # TODO: optional backgrounding
         pid = os.fork()
         if pid > 0:
           sys.exit(0)
@@ -73,6 +76,7 @@ def search(vidname):
         urllib.urlretrieve(url, filename)[0]
 
       print "Converting " + finalname
+      # TODO: Hide ffmpeg's output if we're backgrounding the fetch.
       if os.system("ffmpeg -i %s %s" % (filename, finalname)) != 0:
         finalOK = False
       else:
