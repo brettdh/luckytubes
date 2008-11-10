@@ -1,7 +1,28 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Author: Ricardo Garcia Gonzalez
-# License: Public domain code
+
+# Modifications to the original are Copyright 2008 Scott Wolchok.
+# Orignal information:
+#   Author: Ricardo Garcia Gonzalez
+#   License: Public domain code
+
+# This file is part of LuckyTubes.
+
+# LuckyTubes is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# LuckyTubes is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with LuckyTubes.  If not, see <http://www.gnu.org/licenses/>.
+
+
+
 import htmlentitydefs
 import httplib
 # Sorry, people in other countries
