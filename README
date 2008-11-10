@@ -1,0 +1,32 @@
+What is it?
+
+LuckyTubes is a command-line utility to find, download, and rip music
+from YouTube videos. Its main goals are simplicity, low development
+overhead, and cross-platform usability, in that order. It resembles
+clive, but it is targeted at playing music that just happens to have a
+people don't have Python installed, and I am too lazy to generate
+video on YouTube. Because cross-platform usability is a goal, normal
+frozen bundles for Windows and Mac, LuckyTubes is compatible with
+Jython 2.2.1 (will move to 2.5 when it's released).
+
+Usage 
+
+LuckyTubes interprets all its command arguments as search terms
+retrieve the first video on YouTube matching the search terms "the way
+for YouTube videos. For example, luckytubes the way i are will
+I are" (sans quotes), save it to ~/.luckytubes, extract the (probably
+MP3) audio track with ffmpeg, and add the resulting MP3 to your Amarok
+playlist.
+
+Included Dependencies
+
+The atom and gdata directories are part of the "Google Data APIs
+Python Client Library", available at
+http://code.google.com/p/gdata-python-client/.
+
+elementtree is the jython-elementtree port.
+
+
+
+
+
