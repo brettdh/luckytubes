@@ -69,12 +69,12 @@ def search(vidname):
     feed = service.YouTubeQuery(query)
     info = ex.extract(feed.entry[0].media.player.url)[0]
     url = info['url']
-    id = info['id']
+    vid_id = info['id']
     simpletitle = info['stitle']
     ext = info['ext']
 
     print "Video URL: " + feed.entry[0].media.player.url
-    basename = "%s%s_%s." % (CACHE,simpletitle,id)
+    basename = "%s%s_%s." % (CACHE,simpletitle,vid_id)
     filename = basename+ext
     finalname = basename+"mp3"
 #    print [x.url for x in feed.entry[0].media.content if 'rtsp' in x.url]
@@ -90,7 +90,7 @@ def search(vidname):
         if pid > 0:
           sys.exit(0)
         print "PID: %d" % os.getpid()
-        urllib.urlretrieve(url, filename)[0]
+        urllib.urlretrieve(url, filename)
 
       print "Converting " + finalname
       # TODO: Hide ffmpeg's output if we're backgrounding the fetch.
