@@ -14,6 +14,7 @@ VIDEO_SEARCH_URL="http://gdata.youtube.com/feeds/api/videos?q=%s&max-results=10&
 service = gdata.youtube.service.YouTubeService()
 ex = youtubedl.YoutubeIE()
 
+# Debugging code from YouTube API site for playing with the feed.
 def PrintEntryDetails(entry):
   print dir(entry.media)
   print 'Video title: %s' % entry.media.title.text
@@ -61,21 +62,25 @@ def search(vidname):
 #    return
     finalOK = True
     if not os.path.exists(finalname):
+      # TODO: check if it actually finished downloading
+      # (Firefox-like file.part + mv file.part file should do)
       if not os.path.exists(filename):
         print "Downloading " + filename
         pid = os.fork()
         if pid > 0:
           sys.exit(0)
-          print "PID: %d" % os.getpid()
-          urllib.urlretrieve(url, filename)[0]
+        print "PID: %d" % os.getpid()
+        urllib.urlretrieve(url, filename)[0]
 
       print "Converting " + finalname
       if os.system("ffmpeg -i %s %s" % (filename, finalname)) != 0:
         finalOK = False
       else:
         os.remove(filename)
-    else:
-      os.remove(filename)
+    # Make sure we didn't leave the full video in the cache last time
+    # we fetched it
+    elif os.path.exists(filename):
+        os.remove(filename)
     
     if finalOK:
       os.system("amarok " + finalname)
@@ -84,4 +89,5 @@ def search(vidname):
 
 
 if __name__ == "__main__":
+  # TODO: options
   search(' '.join(sys.argv[1:]))
