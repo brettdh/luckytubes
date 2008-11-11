@@ -110,5 +110,7 @@ def search(vidname):
 
 
 if __name__ == "__main__":
+  if not os.path.exists(CACHE):
+    os.makedirs(CACHE)
   # TODO: options
   search(' '.join(sys.argv[1:]))
