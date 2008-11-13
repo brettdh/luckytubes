@@ -18,16 +18,17 @@
 
 """LuckyTubes -- play music off YouTube by feeling lucky!"""
 
+import optparse
 import os
 import os.path
 import sys
 import urllib
-import youtubedl
 
 import gdata.youtube.service
+import youtubedl
 
-CACHE=os.path.join(os.environ["HOME"],".luckytubes" + os.sep)
-VIDEO_SEARCH_URL="http://gdata.youtube.com/feeds/api/videos?q=%s&max-results=10&v=2"
+CACHE=os.path.join(os.environ['HOME'],'.luckytubes' + os.sep)
+VIDEO_SEARCH_URL='http://gdata.youtube.com/feeds/api/videos?q=%s&max-results=10&v=2'
 
 class LuckyTubes(object):
   def __init__(self):
@@ -48,18 +49,18 @@ class LuckyTubes(object):
     """
     if not os.path.exists(final_filename):
       if not os.path.exists(video_filename):
-        print "Downloading " + video_filename
+        print 'Downloading ' + video_filename
         # TODO: optional backgrounding
         pid = os.fork()
         if pid > 0:
           sys.exit(0)
-        print "PID: %d" % os.getpid()
-        urllib.urlretrieve(url, video_filename + ".part")
-        os.rename(video_filename+".part", video_filename)
+        print 'PID: %d' % os.getpid()
+        urllib.urlretrieve(url, video_filename + '.part')
+        os.rename(video_filename+'.part', video_filename)
 
-      print "Converting " + final_filename
+      print 'Converting ' + final_filename
       # TODO: Hide ffmpeg's output if we're backgrounding the fetch.
-      if os.system("ffmpeg -i %s %s" % (video_filename, final_filename)) != 0:
+      if os.system('ffmpeg -i %s %s' % (video_filename, final_filename)) != 0:
         return False
       else:
         os.remove(video_filename)
@@ -100,20 +101,26 @@ class LuckyTubes(object):
 
   def search(self, search_terms):
     url, vid_id, simpletitle, ext = self.lucky_search(search_terms)
-    print "Video URL: " + url
-    basename = "%s%s_%s." % (CACHE,simpletitle,vid_id)
+    print 'Video URL: ' + url
+    basename = '%s%s_%s.' % (CACHE,simpletitle,vid_id)
     filename = basename+ext
-    finalname = basename+"mp3"
+    finalname = basename+'mp3'
 
     if self.fetch_video(url, filename, finalname):
-      os.system("amarok " + finalname)
+      os.system('amarok ' + finalname)
     else:  # assume we at least got FLV
-      os.system("amarok " + filename)
+      os.system('amarok ' + filename)
 
 
-if __name__ == "__main__":
+def main(argv):
+  parser = optparse.OptionParser()
+  parser.add_option(
+
   if not os.path.exists(CACHE):
     os.makedirs(CACHE)
-  # TODO: options
+
     
   LuckyTubes().search(' '.join(sys.argv[1:]))
+
+if __name__ == '__main__':
+  main(sys.argv)
