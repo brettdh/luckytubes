@@ -29,6 +29,42 @@ import youtubedl
 
 VIDEO_SEARCH_URL='http://gdata.youtube.com/feeds/api/videos?q=%s&max-results=10&v=2'
 
+
+def daemonize():
+  """Detach this process from the terminal. Only works on 'nix.
+  This function is
+  Copyright  (C) 2005 Chad J. Schroeder
+  From http://code.activestate.com/recipes/278731/
+
+  In LuckyTubes, we don't bother closing file descriptors, we just
+  want to detach from terminal.
+  """
+  def fork_once():
+    try:
+      return os.fork()
+    except OSError, e:
+      raise Exception, "Couldn't daemonize: %s [%d]" % (e.strerror, e.errno)
+
+  pid = fork_once()
+  if pid == 0:
+    os.setsid()
+    pid = fork_once()
+
+    if pid == 0:
+      os.chdir('/')
+    else:
+      os._exit(0)
+  else:
+    os._exit(0)
+
+  # Drop stdin, stdout, stderr.
+  os.close(0)
+  os.close(1)
+  os.close(2)
+  os.open(os.devnull, os.O_RDWR)
+  os.dup2(0, 1)
+  os.dup2(0, 2)
+
 class LuckyTubes(object):
   def __init__(self, nofork, verbose, cachedir):
     """Inits LuckyTubes with options.
@@ -45,6 +81,10 @@ class LuckyTubes(object):
     self.verbose = verbose
     self.cachedir = cachedir
 
+  def vprint(self, out):
+    if self.verbose:
+      print out
+
   def fetch_video(self, url, video_filename, final_filename):
     """Fetch the video at the given (YouTube) URL. Includes caching,
     extracting audio, etc.
@@ -59,19 +99,18 @@ class LuckyTubes(object):
     """
     if not os.path.exists(final_filename):
       if not os.path.exists(video_filename):
-        if self.verbose:
-          print 'Downloading ' + video_filename
+        self.vprint('Downloading %s%s' % 
+                    (video_filename, ' in background' if self.verbose else ''))
 
         if not self.nofork:
-          pid = os.fork()
-          if pid > 0:
-            sys.exit(0)
-          print 'PID: %d' % os.getpid()
+          daemonize()
+          self.vprint('PID: %d' % os.getpid())
+
         urllib.urlretrieve(url, video_filename + '.part')
         os.rename(video_filename+'.part', video_filename)
 
-      print 'Converting ' + final_filename
-      # TODO: Hide ffmpeg's output if we're backgrounding the fetch.
+      self.vprint('Converting ' + final_filename)
+
       if os.system('ffmpeg -i %s %s' % (video_filename, final_filename)) != 0:
         return False
       else:
@@ -113,8 +152,7 @@ class LuckyTubes(object):
 
   def search(self, search_terms):
     url, vid_id, simpletitle, ext = self.lucky_search(search_terms)
-    if self.verbose:
-      print 'Video URL: ' + url
+    self.vprint('Video URL: ' + url)
     basename = '%s%s_%s.' % (self.cachedir, simpletitle, vid_id)
     filename = basename+ext
     finalname = basename+'mp3'
