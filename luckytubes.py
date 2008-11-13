@@ -27,13 +27,23 @@ import urllib
 import gdata.youtube.service
 import youtubedl
 
-CACHE=os.path.join(os.environ['HOME'],'.luckytubes' + os.sep)
 VIDEO_SEARCH_URL='http://gdata.youtube.com/feeds/api/videos?q=%s&max-results=10&v=2'
 
 class LuckyTubes(object):
-  def __init__(self):
+  def __init__(self, nofork, verbose, cachedir):
+    """Inits LuckyTubes with options.
+    
+    Args:
+      nofork: True iff we should remain in the foreground instead of forking.
+      verbose: True iff we want chatty output indicating our progress.
+      cachedir: path to LuckyTubes cache directory.
+    """
+
     self.service = gdata.youtube.service.YouTubeService()
     self.extractor = youtubedl.YoutubeIE()
+    self.nofork = nofork
+    self.verbose = verbose
+    self.cachedir = cachedir
 
   def fetch_video(self, url, video_filename, final_filename):
     """Fetch the video at the given (YouTube) URL. Includes caching,
@@ -49,12 +59,14 @@ class LuckyTubes(object):
     """
     if not os.path.exists(final_filename):
       if not os.path.exists(video_filename):
-        print 'Downloading ' + video_filename
-        # TODO: optional backgrounding
-        pid = os.fork()
-        if pid > 0:
-          sys.exit(0)
-        print 'PID: %d' % os.getpid()
+        if self.verbose:
+          print 'Downloading ' + video_filename
+
+        if not self.nofork:
+          pid = os.fork()
+          if pid > 0:
+            sys.exit(0)
+          print 'PID: %d' % os.getpid()
         urllib.urlretrieve(url, video_filename + '.part')
         os.rename(video_filename+'.part', video_filename)
 
@@ -65,7 +77,7 @@ class LuckyTubes(object):
       else:
         os.remove(video_filename)
     # Make sure we didn't leave the full video in the cache last time
-    # we fetched it
+    # we fetched it.
     elif os.path.exists(video_filename):
         os.remove(video_filename)
 
@@ -101,8 +113,9 @@ class LuckyTubes(object):
 
   def search(self, search_terms):
     url, vid_id, simpletitle, ext = self.lucky_search(search_terms)
-    print 'Video URL: ' + url
-    basename = '%s%s_%s.' % (CACHE,simpletitle,vid_id)
+    if self.verbose:
+      print 'Video URL: ' + url
+    basename = '%s%s_%s.' % (self.cachedir, simpletitle, vid_id)
     filename = basename+ext
     finalname = basename+'mp3'
 
@@ -114,13 +127,21 @@ class LuckyTubes(object):
 
 def main(argv):
   parser = optparse.OptionParser()
-  parser.add_option(
+  parser.add_option('--nofork', dest='nofork', action='store_true')
+  parser.add_option('-v', '--verbose', dest='verbose', action='store_true')
+  parser.add_option('--cache', dest='cachedir',
+      default=os.path.join(os.environ['HOME'],'.luckytubes' + os.sep))
 
-  if not os.path.exists(CACHE):
-    os.makedirs(CACHE)
+  (options, args) = parser.parse_args()
 
+  if not os.path.exists(options.cachedir):
+    os.makedirs(options.cachedir)
     
-  LuckyTubes().search(' '.join(sys.argv[1:]))
+  lt = LuckyTubes(nofork=options.nofork,
+                  verbose=options.verbose,
+                  cachedir=options.cachedir)
+
+  lt.search(' '.join(args))
 
 if __name__ == '__main__':
   main(sys.argv)
