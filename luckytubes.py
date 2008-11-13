@@ -33,34 +33,6 @@ VIDEO_SEARCH_URL="http://gdata.youtube.com/feeds/api/videos?q=%s&max-results=10&
 service = gdata.youtube.service.YouTubeService()
 ex = youtubedl.YoutubeIE()
 
-# Debugging code from YouTube API site for playing with the feed.
-def PrintEntryDetails(entry):
-  print dir(entry.media)
-  print 'Video title: %s' % entry.media.title.text
-  print 'Video published on: %s ' % entry.published.text
-  print 'Video description: %s' % entry.media.description.text
-  print 'Video category: %s' % entry.media.category[0].text
-  print 'Video tags: %s' % entry.media.keywords.text
-  print 'Video watch page: %s' % entry.media.player.url
-  print 'Video flash player URL: %s' % entry.GetSwfUrl()
-  content_urls = [x.url for x in entry.media.content if x.medium == 'video']
-  print 'Video Content: %s' % content_urls
-  print 'Video duration: %s' % entry.media.duration.seconds
-
-  # non entry.media attributes
-  print 'Video view count: %s' % entry.statistics.view_count
-  print 'Video rating: %s' % entry.rating.average
-
-  # show alternate formats
-  for alternate_format in entry.media.content:
-    if 'isDefault' not in alternate_format.extension_attributes:
-      print 'Alternate format: %s | url: %s ' % (alternate_format.type,
-                                                 alternate_format.url)
-
-  # show thumbnails
-  for thumbnail in entry.media.thumbnail:
-    print 'Thumbnail url: %s' % thumbnail.url
-
 def search(vidname):
     query = gdata.youtube.service.YouTubeVideoQuery()
     query.vq = vidname
@@ -81,8 +53,6 @@ def search(vidname):
 #    return
     finalOK = True
     if not os.path.exists(finalname):
-      # TODO: check if it actually finished downloading
-      # (Firefox-like file.part + mv file.part file should do)
       if not os.path.exists(filename):
         print "Downloading " + filename
         # TODO: optional backgrounding
@@ -90,7 +60,8 @@ def search(vidname):
         if pid > 0:
           sys.exit(0)
         print "PID: %d" % os.getpid()
-        urllib.urlretrieve(url, filename)
+        urllib.urlretrieve(url, filename + ".part")
+        os.rename(filename+".part", filename)
 
       print "Converting " + finalname
       # TODO: Hide ffmpeg's output if we're backgrounding the fetch.
