@@ -29,11 +29,6 @@ import gdata.youtube.service
 CACHE=os.path.join(os.environ["HOME"],".luckytubes" + os.sep)
 VIDEO_SEARCH_URL="http://gdata.youtube.com/feeds/api/videos?q=%s&max-results=10&v=2"
 
-# TODO: Package the code into a class instead of icky globals
-service = gdata.youtube.service.YouTubeService()
-ex = youtubedl.YoutubeIE()
-
-
 class LuckyTubes(object):
   def __init__(self):
     self.service = gdata.youtube.service.YouTubeService()
