@@ -22,7 +22,9 @@ import luckytubes
 
 import wx
 
+
 VERSION="0.1"
+
 
 class LtPanel(wx.Panel):
     def __init__(self, parent, *args, **kwargs):
@@ -51,6 +53,7 @@ class LtPanel(wx.Panel):
     def run_lt(self, e):
         print self.search_box.GetValue()
         luckytubes.main([self.search_box.GetValue()])
+
 
 class LtMainFrame(wx.Frame):
     """Main frame of LtGUI (there's only one).

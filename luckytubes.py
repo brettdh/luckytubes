@@ -27,8 +27,12 @@ import urllib
 import gdata.youtube.service
 import youtubedl
 
-VIDEO_SEARCH_URL='http://gdata.youtube.com/feeds/api/videos?q=%s&max-results=10&v=2'
+VIDEO_SEARCH_URL = 'http://gdata.youtube.com/feeds/api/' + \
+    'videos?q=%s&max-results=10&v=2'
 
+class Error(Exception):
+  """LuckyTubes error."""
+  pass
 
 def daemonize():
   """Detach this process from the terminal. Only works on 'nix.
@@ -40,10 +44,11 @@ def daemonize():
   want to detach from terminal.
   """
   def fork_once():
+    """Fork the program, wrapping exceptions appropriately."""
     try:
       return os.fork()
-    except OSError, e:
-      raise Exception, "Couldn't daemonize: %s [%d]" % (e.strerror, e.errno)
+    except OSError, ex:
+      raise Error, "Couldn't daemonize: %s [%d]" % (ex.strerror, ex.errno)
 
   pid = fork_once()
   if pid == 0:
@@ -67,6 +72,7 @@ def daemonize():
 
 
 class LuckyTubes(object):
+  """Handle to LuckyTubes "service"."""
   def __init__(self, quiet, cachedir, high_quality):
     """Inits LuckyTubes with options.
     
@@ -83,6 +89,7 @@ class LuckyTubes(object):
     self.high_quality = high_quality
 
   def vprint(self, out):
+    """Print only if not quiet."""
     if not self.quiet:
       print out
 
@@ -118,7 +125,7 @@ class LuckyTubes(object):
     # Make sure we didn't leave the full video in the cache last time
     # we fetched it.
     elif os.path.exists(video_filename):
-        os.remove(video_filename)
+      os.remove(video_filename)
 
     return True
 
