@@ -66,7 +66,7 @@ def daemonize():
   os.dup2(0, 2)
 
 class LuckyTubes(object):
-  def __init__(self, nofork, verbose, cachedir, high_quality):
+  def __init__(self, quiet, cachedir, high_quality):
     """Inits LuckyTubes with options.
     
     Args:
@@ -77,13 +77,12 @@ class LuckyTubes(object):
 
     self.service = gdata.youtube.service.YouTubeService()
     self.extractor = youtubedl.YoutubeIE()
-    self.nofork = nofork
-    self.verbose = verbose
+    self.quiet = quiet
     self.cachedir = cachedir
     self.high_quality = high_quality
 
   def vprint(self, out):
-    if self.verbose:
+    if not self.quiet:
       print out
 
   def fetch_video(self, url, video_filename, final_filename):
@@ -100,10 +99,9 @@ class LuckyTubes(object):
     """
     if not os.path.exists(final_filename):
       if not os.path.exists(video_filename):
-        self.vprint('Downloading %s%s' % 
-                    (video_filename, ' in background' if not self.nofork else ''))
+        self.vprint('Downloading %s' % video_filename)
 
-        if not self.nofork:
+        if self.quiet:
           daemonize()
           self.vprint('PID: %d' % os.getpid())
 
@@ -188,10 +186,8 @@ def main(argv):
                     dest='url_only',
                     action='store_true',
                     help='Only print the URL to watch the video')
-  parser.add_option('--nofork', dest='nofork', action='store_true',
-                    help='Don\'t go into background to download')
-  parser.add_option('-v', '--verbose', dest='verbose', action='store_true',
-                    help='Print output indicating progress')
+  parser.add_option('-q', '--quiet', dest='quiet', action='store_true',
+                    help='Don\'t print any output')
   parser.add_option('-b', '--best', '--high-quality', dest='high_quality',
                     action='store_true', help='Use high-quality video')
   parser.add_option('--cache', dest='cachedir',
@@ -204,8 +200,7 @@ def main(argv):
   if not os.path.exists(options.cachedir):
     os.makedirs(options.cachedir)
     
-  lt = LuckyTubes(nofork=options.nofork,
-                  verbose=options.verbose,
+  lt = LuckyTubes(quiet=options.quiet,
                   cachedir=options.cachedir,
                   high_quality=options.high_quality)
 
@@ -216,4 +211,4 @@ def main(argv):
     lt.search(terms)
 
 if __name__ == '__main__':
-  main(sys.argv)
+  main(sys.argv[1:])
