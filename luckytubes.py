@@ -65,6 +65,7 @@ def daemonize():
   os.dup2(0, 1)
   os.dup2(0, 2)
 
+
 class LuckyTubes(object):
   def __init__(self, quiet, cachedir, high_quality):
     """Inits LuckyTubes with options.
