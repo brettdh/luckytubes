@@ -184,14 +184,22 @@ class LuckyTubes(object):
 
 def main(argv):
   parser = optparse.OptionParser()
-  parser.add_option('-u', '--url-only', '--search-only', dest='url_only', action='store_true')
-  parser.add_option('--nofork', dest='nofork', action='store_true')
-  parser.add_option('-v', '--verbose', dest='verbose', action='store_true')
-  parser.add_option('-b', '--best', '--high-quality', dest='high_quality', action='store_true')
+  parser.add_option('-u', '--url-only', '--search-only',
+                    dest='url_only',
+                    action='store_true',
+                    help='Only print the URL to watch the video')
+  parser.add_option('--nofork', dest='nofork', action='store_true',
+                    help='Don\'t go into background to download')
+  parser.add_option('-v', '--verbose', dest='verbose', action='store_true',
+                    help='Print output indicating progress')
+  parser.add_option('-b', '--best', '--high-quality', dest='high_quality',
+                    action='store_true', help='Use high-quality video')
   parser.add_option('--cache', dest='cachedir',
+      help='Directory to cache downloaded video/audio',
       default=os.path.join(os.environ['HOME'],'.luckytubes' + os.sep))
 
-  (options, args) = parser.parse_args()
+  (options, args) = parser.parse_args(argv)
+
 
   if not os.path.exists(options.cachedir):
     os.makedirs(options.cachedir)
