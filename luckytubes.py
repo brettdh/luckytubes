@@ -66,7 +66,7 @@ def daemonize():
   os.dup2(0, 2)
 
 class LuckyTubes(object):
-  def __init__(self, nofork, verbose, cachedir):
+  def __init__(self, nofork, verbose, cachedir, high_quality):
     """Inits LuckyTubes with options.
     
     Args:
@@ -80,6 +80,7 @@ class LuckyTubes(object):
     self.nofork = nofork
     self.verbose = verbose
     self.cachedir = cachedir
+    self.high_quality = high_quality
 
   def vprint(self, out):
     if self.verbose:
@@ -100,7 +101,7 @@ class LuckyTubes(object):
     if not os.path.exists(final_filename):
       if not os.path.exists(video_filename):
         self.vprint('Downloading %s%s' % 
-                    (video_filename, ' in background' if self.verbose else ''))
+                    (video_filename, ' in background' if not self.nofork else ''))
 
         if not self.nofork:
           daemonize()
@@ -122,7 +123,7 @@ class LuckyTubes(object):
 
     return True
 
-  def lucky_search(self, search_terms, racy=True):
+  def get_watch_url(self, search_terms, racy=True):
     """Search for something on YouTube. "Feel lucky" -- return the
     first result.
 
@@ -131,9 +132,8 @@ class LuckyTubes(object):
       racy: whether to include restricted ("racy") videos.
 
     Returns:
-      Tuple (url, vid_id, title, ext) representing file URL, unique ID
-        ID, simple video title, and extension for the video file,
-        respectively.
+      YouTube result URL for the video (suitable for browsing or input
+      to youtube-dl).
     """
 
     query = gdata.youtube.service.YouTubeVideoQuery()
@@ -146,12 +146,31 @@ class LuckyTubes(object):
       query.racy = 'exclude'
 
     feed = self.service.YouTubeQuery(query)
-    info = self.extractor.extract(feed.entry[0].media.player.url)[0]
+    return feed.entry[0].media.player.url
+
+  def extract_video_info(self, view_url):
+    """Extract information for the given video for downloading and 
+    labeling.
+
+    Args:
+      view_url: the URL for the video on YouTube (the one you browse to).
+
+    Returns:
+      Tuple (url, vid_id, title, ext) representing file URL, unique ID
+        ID, simple video title, and extension for the video file,
+        respectively.
+    """
+    info = self.extractor.extract(view_url)[0]
 
     return (info['url'], info['id'], info['stitle'], info['ext'])
 
   def search(self, search_terms):
-    url, vid_id, simpletitle, ext = self.lucky_search(search_terms)
+    view_url = self.get_watch_url(search_terms)
+    url, vid_id, simpletitle, ext = self.extract_video_info(view_url)
+
+    if self.high_quality:
+      url += '&fmt=18'
+
     self.vprint('Video URL: ' + url)
     basename = '%s%s_%s.' % (self.cachedir, simpletitle, vid_id)
     filename = basename+ext
@@ -165,8 +184,10 @@ class LuckyTubes(object):
 
 def main(argv):
   parser = optparse.OptionParser()
+  parser.add_option('-u', '--url-only', '--search-only', dest='url_only', action='store_true')
   parser.add_option('--nofork', dest='nofork', action='store_true')
   parser.add_option('-v', '--verbose', dest='verbose', action='store_true')
+  parser.add_option('-b', '--best', '--high-quality', dest='high_quality', action='store_true')
   parser.add_option('--cache', dest='cachedir',
       default=os.path.join(os.environ['HOME'],'.luckytubes' + os.sep))
 
@@ -177,9 +198,14 @@ def main(argv):
     
   lt = LuckyTubes(nofork=options.nofork,
                   verbose=options.verbose,
-                  cachedir=options.cachedir)
+                  cachedir=options.cachedir,
+                  high_quality=options.high_quality)
 
-  lt.search(' '.join(args))
+  terms = ' '.join(args)
+  if options.url_only:
+    print lt.get_watch_url(terms)
+  else:
+    lt.search(terms)
 
 if __name__ == '__main__':
   main(sys.argv)
