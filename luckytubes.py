@@ -193,7 +193,7 @@ def main(argv):
                     action='store_true', help='Use high-quality video')
   parser.add_option('--cache', dest='cachedir',
       help='Directory to cache downloaded video/audio',
-      default=os.path.join(os.environ['HOME'],'.luckytubes' + os.sep))
+      default=os.path.expanduser(os.path.join('~', '.luckytubes', '')))
 
   (options, args) = parser.parse_args(argv)
 
