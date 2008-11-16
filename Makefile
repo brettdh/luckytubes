@@ -12,8 +12,8 @@ dist: $(SRCS)
 	git archive --format=tar --prefix=luckytubes-${DATE}/ HEAD | bzip2 > luckytubes-${DATE}.tar.bz2
 	git archive --format=zip --prefix=luckytubes-${DATE}/ HEAD > luckytubes-${DATE}.zip
 
-lint: $(SRCS)
-	PYLINTRC=.pylintrc pylint $<
+lint: luckytubes.py ltgui.py
+	PYLINTRC=.pylintrc pylint $^
 
-pychecker: $(SRCS)
-	pychecker $<
+pychecker: luckytubes.py
+	pychecker -b $<
