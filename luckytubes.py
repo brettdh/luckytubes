@@ -183,7 +183,14 @@ class LuckyTubes(object):
     finalname = basename+'mp3'
 
     # System default in Windows (and pray it adds to playlist!)
-    player = 'start ' if 'win' in sys.platform else 'amarok '
+    if 'win' in sys.platform:
+      player = 'start '
+      # Show them the download.
+      os.system('start ' + self.cachedir)
+    else:
+      # TODO: configurable player...
+      player = 'amarok '
+
     if self.fetch_video(url, filename, finalname):
       os.system(player + finalname)
     else:  # assume we at least got FLV
