@@ -69,7 +69,7 @@ class LtMainFrame(wx.Frame):
   This class is just boilerplate: menu bar, panel, etc.
   """
   def __init__(self, parent, id, title, pos=wx.DefaultPosition,
-               size=(-1, 75)):
+               size=(-1, 150)):
     wx.Frame.__init__(self, parent, id, title, pos, size)
     self.panel = LtPanel(self)
 
