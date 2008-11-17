@@ -92,7 +92,7 @@ class LtMainFrame(wx.Frame):
     self.SetMenuBar(menu_bar)
 
   @staticmethod
-  def show_about_box(self):
+  def show_about_box():
     """Show the about box."""
     info = wx.AboutDialogInfo()
     info.AddDeveloper("Scott Wolchok")
