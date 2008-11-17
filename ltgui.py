@@ -74,7 +74,6 @@ class LtMainFrame(wx.Frame):
     self.panel = LtPanel(self)
 
     self._setup_menu_bar()
-    self.Show()
 
   def _setup_menu_bar(self):
     file_menu = wx.Menu()
@@ -105,6 +104,7 @@ def main():
   app = wx.App()
   app.SetAppName("LuckyTubes")
   frame = LtMainFrame(None, wx.ID_ANY, app.GetAppName())
+  frame.Show(True)
   app.MainLoop()
 
 if __name__ == "__main__":
