@@ -28,13 +28,12 @@ import luckytubes
 VERSION = "0.1"
 
 class FetchThread(threading.Thread):
-  def __init__(self, luckytubes, ltargs, *args, **kwargs):
+  def __init__(self, ltargs, *args, **kwargs):
     threading.Thread.__init__(self, *args, **kwargs)
-    self.luckytubes = luckytubes
     self.ltargs = ltargs
 
   def run(self):
-    self.luckytubes.main(self.ltargs)
+    luckytubes.main(self.ltargs)
 
 class LtPanel(wx.Panel):
   def __init__(self, parent, *args, **kwargs):
@@ -61,7 +60,7 @@ class LtPanel(wx.Panel):
     top_sizer.Fit(self)
 
   def run_lt(self, e):
-    FetchThread(luckytubes, [self.search_box.GetValue()]).start()
+    FetchThread([self.search_box.GetValue()]).start()
 
 
 class LtMainFrame(wx.Frame):
