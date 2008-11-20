@@ -228,4 +228,8 @@ def main(argv):
     lt.search(terms)
 
 if __name__ == '__main__':
+  if len(sys.argv) < 2:
+    print "Usage: luckytubes.py <search terms>"
+    print "Run with --help for options."
+    sys.exit(1)
   main(sys.argv[1:])
