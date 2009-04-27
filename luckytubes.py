@@ -118,7 +118,7 @@ class LuckyTubes(object):
 
       self.vprint('Converting ' + final_filename)
 
-      if os.system('ffmpeg -i %s %s' % (video_filename, final_filename)) != 0:
+      if os.system('ffmpeg -i %s -vn -acodec copy %s' % (video_filename, final_filename)) != 0:
         return False
       else:
         os.remove(video_filename)
@@ -176,11 +176,14 @@ class LuckyTubes(object):
 
     if self.high_quality:
       url += '&fmt=18'
+      final_ext = 'm4a'
+    else:
+      final_ext = 'mp3'
 
     self.vprint('Video URL: ' + url)
     basename = '%s%s_%s.' % (self.cachedir, simpletitle, vid_id)
     filename = basename+ext
-    finalname = basename+'mp3'
+    finalname = basename+final_ext
 
     # System default in Windows (and pray it adds to playlist!)
     if 'win' in sys.platform:
