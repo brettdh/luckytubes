@@ -170,8 +170,11 @@ class LuckyTubes(object):
 
     return (info['url'], info['id'], info['stitle'], info['ext'])
 
-  def search(self, search_terms):
+  def search_and_download(self, search_terms):
     view_url = self.get_watch_url(search_terms)
+    self.download(view_url)
+
+  def download(self, view_url):
     url, vid_id, simpletitle, ext = self.extract_video_info(view_url)
 
     if self.high_quality:
@@ -210,6 +213,8 @@ def main(argv):
                     help='Don\'t print any output')
   parser.add_option('-b', '--best', '--high-quality', dest='high_quality',
                     action='store_true', help='Use high-quality video')
+  parser.add_option('-y', '--by-url', dest='by_url', action='store_true',
+                    help='Don\'t search, just download by URL')
   parser.add_option('--cache', dest='cachedir',
       help='Directory to cache downloaded video/audio',
       default=os.path.expanduser(os.path.join('~', '.luckytubes', '')))
@@ -227,8 +232,10 @@ def main(argv):
   terms = ' '.join(args)
   if options.url_only:
     print lt.get_watch_url(terms)
+  elif options.by_url:
+    lt.download(terms)
   else:
-    lt.search(terms)
+    lt.search_and_download(terms)
 
 if __name__ == '__main__':
   if len(sys.argv) < 2:
