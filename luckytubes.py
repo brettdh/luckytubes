@@ -34,6 +34,10 @@ class Error(Exception):
   """LuckyTubes error."""
   pass
 
+class SearchFailedError(Error):
+  '''Search had no results.'''
+  pass
+
 def daemonize():
   """Detach this process from the terminal. Only works on 'nix.
   This function is
@@ -152,7 +156,10 @@ class LuckyTubes(object):
       query.racy = 'exclude'
 
     feed = self.service.YouTubeQuery(query)
-    return feed.entry[0].media.player.url
+    try:
+      return feed.entry[0].media.player.url
+    except IndexError as e:
+      raise SearchFailedError(e)
 
   def extract_video_info(self, view_url):
     """Extract information for the given video for downloading and 
