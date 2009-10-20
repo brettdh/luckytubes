@@ -54,6 +54,7 @@ except ImportError:
       from xml.etree import ElementTree
     except ImportError:
       from elementtree import ElementTree
+import warnings
 
 
 # XML namespaces which are often used in Atom entities.
@@ -65,10 +66,42 @@ APP_TEMPLATE = '{http://purl.org/atom/app#}%s'
 # This encoding is used for converting strings before translating the XML
 # into an object.
 XML_STRING_ENCODING = 'utf-8'
-# The desired string encoding for object members.
+# The desired string encoding for object members. set or monkey-patch to 
+# unicode if you want object members to be Python unicode strings, instead of
+# encoded strings
 MEMBER_STRING_ENCODING = 'utf-8'
+#MEMBER_STRING_ENCODING = unicode
+
+# If True, all methods which are exclusive to v1 will raise a
+# DeprecationWarning
+ENABLE_V1_WARNINGS = False
 
 
+def v1_deprecated(warning=None):
+  """Shows a warning if ENABLE_V1_WARNINGS is True.
+  
+  Function decorator used to mark methods used in v1 classes which
+  may be removed in future versions of the library.
+  """
+  warning = warning or ''
+  # This closure is what is returned from the deprecated function.
+  def mark_deprecated(f):
+    # The deprecated_function wraps the actual call to f.
+    def optional_warn_function(*args, **kwargs):
+      if ENABLE_V1_WARNINGS:
+        warnings.warn(warning, DeprecationWarning, stacklevel=2)
+      return f(*args, **kwargs)
+    # Preserve the original name to avoid masking all decorated functions as
+    # 'deprecated_function'
+    try:
+      optional_warn_function.func_name = f.func_name
+    except TypeError:
+      pass # In Python2.3 we can't set the func_name
+    return optional_warn_function
+  return mark_deprecated
+
+
+#@v1_deprecated('Please use atom.core.parse with atom.data classes instead.')
 def CreateClassFromXMLString(target_class, xml_string, string_encoding=None):
   """Creates an instance of the target class from the string contents.
   
@@ -94,6 +127,11 @@ def CreateClassFromXMLString(target_class, xml_string, string_encoding=None):
     xml_string = xml_string.encode(encoding)
   tree = ElementTree.fromstring(xml_string)
   return _CreateClassFromElementTree(target_class, tree)
+
+
+CreateClassFromXMLString = v1_deprecated(
+    'Please use atom.core.parse with atom.data classes instead.')(
+        CreateClassFromXMLString)
 
 
 def _CreateClassFromElementTree(target_class, tree, namespace=None, tag=None):
@@ -131,12 +169,17 @@ def _CreateClassFromElementTree(target_class, tree, namespace=None, tag=None):
 
 
 class ExtensionContainer(object):
-  
+ 
+  #@v1_deprecated('Please use data model classes in atom.data instead.')
   def __init__(self, extension_elements=None, extension_attributes=None,
       text=None):
     self.extension_elements = extension_elements or []
     self.extension_attributes = extension_attributes or {}
     self.text = text
+
+  __init__ = v1_deprecated(
+      'Please use data model classes in atom.data instead.')(
+          __init__)
  
   # Three methods to create an object from an ElementTree
   def _HarvestElementTree(self, tree):
@@ -147,7 +190,10 @@ class ExtensionContainer(object):
       self._ConvertElementAttributeToMember(attribute, value)
     # Encode the text string according to the desired encoding type. (UTF-8)
     if tree.text:
-      self.text = tree.text.encode(MEMBER_STRING_ENCODING)
+      if MEMBER_STRING_ENCODING is unicode:
+        self.text = tree.text
+      else:
+        self.text = tree.text.encode(MEMBER_STRING_ENCODING)
     
   def _ConvertElementTreeToMember(self, child_tree, current_class=None):
     self.extension_elements.append(_ExtensionElementFromElementTree(
@@ -156,7 +202,10 @@ class ExtensionContainer(object):
   def _ConvertElementAttributeToMember(self, attribute, value):
     # Encode the attribute value's string with the desired type Default UTF-8
     if value:
-      self.extension_attributes[attribute] = value.encode(
+      if MEMBER_STRING_ENCODING is unicode:
+        self.extension_attributes[attribute] = value
+      else:
+        self.extension_attributes[attribute] = value.encode(
           MEMBER_STRING_ENCODING)
 
   # One method to create an ElementTree from an object
@@ -165,15 +214,16 @@ class ExtensionContainer(object):
       child._BecomeChildElement(tree)
     for attribute, value in self.extension_attributes.iteritems():
       if value:
-        # Decode the value from the desired encoding (default UTF-8).
-        if not isinstance(value, unicode):
-          tree.attrib[attribute] = value.decode(MEMBER_STRING_ENCODING)
-        else:
+        if isinstance(value, unicode) or MEMBER_STRING_ENCODING is unicode:
           tree.attrib[attribute] = value
-    if self.text and not isinstance(self.text, unicode):
-      tree.text = self.text.decode(MEMBER_STRING_ENCODING)
-    else:
-      tree.text = self.text 
+        else:
+          # Decode the value from the desired encoding (default UTF-8).
+          tree.attrib[attribute] = value.decode(MEMBER_STRING_ENCODING)
+    if self.text:
+      if isinstance(self.text, unicode) or MEMBER_STRING_ENCODING is unicode:
+        tree.text = self.text 
+      else:
+        tree.text = self.text.decode(MEMBER_STRING_ENCODING)
 
   def FindExtensions(self, tag=None, namespace=None):
     """Searches extension elements for child nodes with the desired name.
@@ -219,11 +269,16 @@ class AtomBase(ExtensionContainer):
   _children = {}
   _attributes = {}
 
+  #@v1_deprecated('Please use data model classes in atom.data instead.')
   def __init__(self, extension_elements=None, extension_attributes=None,
       text=None):
     self.extension_elements = extension_elements or []
     self.extension_attributes = extension_attributes or {}
     self.text = text
+
+  __init__ = v1_deprecated(
+      'Please use data model classes in atom.data instead.')(
+          __init__)
       
   def _ConvertElementTreeToMember(self, child_tree):
     # Find the element's tag in this class's list of child members
@@ -252,7 +307,10 @@ class AtomBase(ExtensionContainer):
       # desired value (using self.__dict__).
       if value:
         # Encode the string to capture non-ascii characters (default UTF-8)
-        setattr(self, self.__class__._attributes[attribute], 
+        if MEMBER_STRING_ENCODING is unicode:
+          setattr(self, self.__class__._attributes[attribute], value)
+        else:
+          setattr(self, self.__class__._attributes[attribute], 
                 value.encode(MEMBER_STRING_ENCODING))
     else:
       ExtensionContainer._ConvertElementAttributeToMember(self, attribute, 
@@ -278,10 +336,10 @@ class AtomBase(ExtensionContainer):
     for xml_attribute, member_name in self.__class__._attributes.iteritems():
       member = getattr(self, member_name)
       if member is not None:
-        if not isinstance(member, unicode):
-          tree.attrib[xml_attribute] = member.decode(MEMBER_STRING_ENCODING)
-        else:
+        if isinstance(member, unicode) or MEMBER_STRING_ENCODING is unicode:
           tree.attrib[xml_attribute] = member
+        else:
+          tree.attrib[xml_attribute] = member.decode(MEMBER_STRING_ENCODING)
     # Lastly, call the ExtensionContainers's _AddMembersToElementTree to 
     # convert any extension attributes.
     ExtensionContainer._AddMembersToElementTree(self, tree)
@@ -1036,6 +1094,12 @@ class LinkFinder(object):
         return a_link
     return None
 
+  def GetEditMediaLink(self):
+    for a_link in self.link:
+      if a_link.rel == 'edit-media':
+        return a_link
+    return None
+
   def GetNextLink(self):
     for a_link in self.link:
       if a_link.rel == 'next':
@@ -1160,6 +1224,7 @@ class Entry(FeedEntryParent):
   _children['{%s}summary' % ATOM_NAMESPACE] = ('summary', Summary)
   _children['{%s}control' % APP_NAMESPACE] = ('control', Control)
 
+  #@v1_deprecated('Please use atom.data.Entry instead.')
   def __init__(self, author=None, category=None, content=None, 
       contributor=None, atom_id=None, link=None, published=None, rights=None,
       source=None, summary=None, control=None, title=None, updated=None,
@@ -1206,6 +1271,8 @@ class Entry(FeedEntryParent):
     self.extension_elements = extension_elements or []
     self.extension_attributes = extension_attributes or {}
 
+  __init__ = v1_deprecated('Please use atom.data.Entry instead.')(__init__)
+
 
 def EntryFromString(xml_string):
   return CreateClassFromXMLString(Entry, xml_string)
@@ -1220,6 +1287,7 @@ class Feed(Source):
   _attributes = Source._attributes.copy()
   _children['{%s}entry' % ATOM_NAMESPACE] = ('entry', [Entry])
 
+  #@v1_deprecated('Please use atom.data.Feed instead.')
   def __init__(self, author=None, category=None, contributor=None,
       generator=None, icon=None, atom_id=None, link=None, logo=None, 
       rights=None, subtitle=None, title=None, updated=None, entry=None, 
@@ -1267,6 +1335,8 @@ class Feed(Source):
     self.text = text
     self.extension_elements = extension_elements or []
     self.extension_attributes = extension_attributes or {}
+
+  __init__ = v1_deprecated('Please use atom.data.Feed instead.')(__init__)
 
 
 def FeedFromString(xml_string):
@@ -1393,3 +1463,26 @@ def _ExtensionElementFromElementTree(element_tree):
     extension.children.append(_ExtensionElementFromElementTree(child))
   extension.text = element_tree.text
   return extension
+
+
+def deprecated(warning=None):
+  """Decorator to raise warning each time the function is called.
+  
+  Args:
+    warning: The warning message to be displayed as a string (optinoal).
+  """
+  warning = warning or ''
+  # This closure is what is returned from the deprecated function.
+  def mark_deprecated(f):
+    # The deprecated_function wraps the actual call to f.
+    def deprecated_function(*args, **kwargs):
+      warnings.warn(warning, DeprecationWarning, stacklevel=2)
+      return f(*args, **kwargs)
+    # Preserve the original name to avoid masking all decorated functions as
+    # 'deprecated_function'
+    try:
+      deprecated_function.func_name = f.func_name
+    except TypeError:
+      pass # Setting the func_name is not allowed in Python2.3.
+    return deprecated_function
+  return mark_deprecated
