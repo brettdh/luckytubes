@@ -158,7 +158,7 @@ class LuckyTubes(object):
     feed = self.service.YouTubeQuery(query)
     try:
       return feed.entry[0].media.player.url
-    except IndexError as e:
+    except (IndexError, e):
       raise SearchFailedError(e)
 
   def extract_video_info(self, view_url):
