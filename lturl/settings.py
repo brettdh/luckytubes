@@ -64,6 +64,9 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.auth.middleware.AuthenticationMiddleware',
 )
 
+# Feel free to uncomment the memcached version if you're JUST THAT HARDCORE.
+CACHE_BACKEND = 'memcached://127.0.0.1:11211/'
+
 ROOT_URLCONF = 'lturl.urls'
 
 TEMPLATE_DIRS = (
