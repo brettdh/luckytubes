@@ -5,6 +5,7 @@ from django.conf.urls.defaults import *
 # admin.autodiscover()
 
 urlpatterns = patterns('',
+    (r'favicon\.ico|robots\.txt', handler404),
     (r'^[^/]+$', 'lturl.yturl.views.search'),
 
     # Uncomment the admin/doc line below and add 'django.contrib.admindocs' 
