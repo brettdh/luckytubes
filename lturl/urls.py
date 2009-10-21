@@ -5,6 +5,7 @@ from django.conf.urls.defaults import *
 # admin.autodiscover()
 
 urlpatterns = patterns('',
+    (r'^$', handler404),
     (r'favicon\.ico|robots\.txt', handler404),
     (r'^[^/]+$', 'lturl.yturl.views.search'),
 
