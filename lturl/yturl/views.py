@@ -25,7 +25,6 @@ def search(request):
   normalized_search_string = ' '.join(search_terms)[:MAX_SEARCH_STRING_LENGTH]
   
   cache_key = MEMCACHED_BAD_CHARS.sub('_', ('lturl:%s' % normalized_search_string))
-  print cache_key
   watch_url = cache.get(cache_key)
   if watch_url is None:
     try:
