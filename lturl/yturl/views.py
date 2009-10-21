@@ -5,6 +5,7 @@ from django.core.cache import cache
 
 import luckytubes
 
+import re
 import urlparse
 
 lt = luckytubes.LuckyTubes(quiet=True, cachedir='/home/swolchok/.lturl',
@@ -16,12 +17,15 @@ lt.download = lt.search_and_download = None
 # Don't let those pesky jokers on the Internet shove too much crap in the cache.
 MAX_SEARCH_STRING_LENGTH = 230
 
+MEMCACHED_BAD_CHARS = re.compile('[^a-zA-Z0-9_:-]')
+
 def search(request):
   search_terms = request.path[1:].lower()
   search_terms = search_terms.replace('_', ' ').replace('-', ' ').split()
   normalized_search_string = ' '.join(search_terms)[:MAX_SEARCH_STRING_LENGTH]
   
-  cache_key = 'lturl:%s' % normalized_search_string
+  cache_key = MEMCACHED_BAD_CHARS.sub('_', ('lturl:%s' % normalized_search_string))
+  print cache_key
   watch_url = cache.get(cache_key)
   if watch_url is None:
     try:
