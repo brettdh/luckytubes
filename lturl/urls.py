@@ -1,11 +1,13 @@
 from django.conf.urls.defaults import *
 
+from django.views.generic.simple import redirect_to
+
 # Uncomment the next two lines to enable the admin:
 # from django.contrib import admin
 # admin.autodiscover()
 
 urlpatterns = patterns('',
-    (r'^$', handler404),
+    (r'^$', redirect_to, {'url': 'http://scott.wolchok.org/lturl.html'}),
     (r'favicon\.ico|robots\.txt', handler404),
     (r'^[^/]+$', 'lturl.yturl.views.search'),
 
