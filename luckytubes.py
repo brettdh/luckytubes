@@ -71,6 +71,15 @@ def daemonize():
   os.dup2(0, 2)
 
 
+class LtDownloader(object):
+  params = {}
+  def to_stdout(self, message, skip_eol=False):
+    print message
+
+  def process_info(self, *args):
+    pass
+
+
 class LuckyTubes(object):
   """Handle to LuckyTubes "service"."""
   def __init__(self, quiet, cachedir, high_quality):
@@ -83,7 +92,7 @@ class LuckyTubes(object):
     """
 
     self.service = gdata.youtube.service.YouTubeService()
-    self.extractor = youtubedl.YoutubeIE()
+    self.extractor = youtubedl.YoutubeIE(LtDownloader())
     self.quiet = quiet
     self.cachedir = cachedir
     self.high_quality = high_quality
@@ -166,7 +175,7 @@ class LuckyTubes(object):
         ID, simple video title, and extension for the video file,
         respectively.
     """
-    info = self.extractor.extract(view_url)[0]
+    info = self.extractor.extract(view_url)
 
     return (info['url'], info['id'], info['stitle'], info['ext'])
 
