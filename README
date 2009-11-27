@@ -12,8 +12,8 @@ Jython 2.2.1 (will move to 2.5 when it's released).
 Usage 
 
 LuckyTubes interprets all its command arguments as search terms
-retrieve the first video on YouTube matching the search terms "the way
 for YouTube videos. For example, luckytubes the way i are will
+retrieve the first video on YouTube matching the search terms "the way
 I are" (sans quotes), save it to ~/.luckytubes, extract the (probably
 MP3) audio track with ffmpeg, and add the resulting MP3 to your Amarok
 playlist.
@@ -25,8 +25,3 @@ Python Client Library", available at
 http://code.google.com/p/gdata-python-client/.
 
 elementtree is the jython-elementtree port.
-
-
-
-
-
