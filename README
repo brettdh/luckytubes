@@ -4,10 +4,7 @@ LuckyTubes is a command-line utility to find, download, and rip music
 from YouTube videos. Its main goals are simplicity, low development
 overhead, and cross-platform usability, in that order. It resembles
 clive, but it is targeted at playing music that just happens to have a
-people don't have Python installed, and I am too lazy to generate
-video on YouTube. Because cross-platform usability is a goal, normal
-frozen bundles for Windows and Mac, LuckyTubes is compatible with
-Jython 2.2.1 (will move to 2.5 when it's released).
+video on YouTube. It is a relatively thin wrapper over youtube-dl.
 
 Usage 
 
@@ -24,4 +21,4 @@ The atom and gdata directories are part of the "Google Data APIs
 Python Client Library", available at
 http://code.google.com/p/gdata-python-client/.
 
-elementtree is the jython-elementtree port.
+youtubedl.py is http://bitbucket.org/rg3/youtube-dl/src/tip/youtube-dl.
