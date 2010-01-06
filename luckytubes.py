@@ -21,6 +21,7 @@
 import optparse
 import os
 import os.path
+from cStringIO import StringIO
 import sys
 import urllib
 
@@ -75,15 +76,6 @@ def daemonize():
   os.dup2(0, 2)
 
 
-class LtDownloader(object):
-  params = {}
-  def to_stdout(self, message, skip_eol=False):
-    print message
-
-  def process_info(self, *args):
-    pass
-
-
 class LuckyTubes(object):
   """Handle to LuckyTubes "service"."""
   def __init__(self, quiet, cachedir, high_quality):
@@ -96,7 +88,6 @@ class LuckyTubes(object):
     """
 
     self.service = gdata.youtube.service.YouTubeService()
-    self.extractor = youtubedl.YoutubeIE(LtDownloader())
     self.quiet = quiet
     self.cachedir = cachedir
     self.high_quality = high_quality
@@ -106,7 +97,7 @@ class LuckyTubes(object):
     if not self.quiet:
       print out
 
-  def fetch_video(self, url, video_filename, final_filename):
+  def fetch_video(self, url, final_ext):
     """Fetch the video at the given (YouTube) URL. Includes caching,
     extracting audio, etc.
 
@@ -118,33 +109,35 @@ class LuckyTubes(object):
     Returns:
       True if download and extract were successful, False otherwise.
     """
-    if not os.path.exists(final_filename):
-      if not os.path.exists(video_filename):
-        self.vprint('Downloading %s' % video_filename)
+    if self.quiet:
+      daemonize()
+      self.vprint('PID: %d' % os.getpid())
 
-        if self.quiet:
-          daemonize()
-          self.vprint('PID: %d' % os.getpid())
+    os.chdir(self.cachedir)
 
-        urllib.urlretrieve(url, video_filename + '.part')
-        os.rename(video_filename+'.part', video_filename)
+    oldstdout = sys.stdout
+    sys.stdout = io = StringIO()
+    youtubedl.main(['-t', url])
 
-      self.vprint('Converting ' + final_filename)
+    video_filename = None
+    DEST_PREFIX = '[download] Destination: '
+    for line in io.getvalue().split('\n'):
+      if line.startswith(DEST_PREFIX):
+        video_filename = line[len(DEST_PREFIX):].strip()
+        break
+    sys.stdout = oldstdout
+    print io.getvalue()
+    io.close()
 
-      if os.system('ffmpeg -i %s -vn -acodec copy %s' % (video_filename, final_filename)) != 0:
-        return False
-      else:
-        os.remove(video_filename)
-    # Make sure we didn't leave the full video in the cache last time
-    # we fetched it.
-    elif os.path.exists(video_filename):
-      os.remove(video_filename)
+    final_filename = video_filename[:-3] + final_ext
 
-    return True
+    if os.system('ffmpeg -i %s -vn -acodec copy %s' % (video_filename, final_filename)) != 0:
+      return None
+    else:
+      return final_filename
 
   def get_watch_url(self, search_terms, racy=True):
-    """Search for something on YouTube. "Feel lucky" -- return the
-    first result.
+    """Search for something on YouTube. Return a list of results.
 
     Args:
       search_terms: space-separated list to pass to YouTube search.
@@ -170,39 +163,17 @@ class LuckyTubes(object):
     except (IndexError, e):
       raise SearchFailedError(e)
 
-  def extract_video_info(self, view_url):
-    """Extract information for the given video for downloading and 
-    labeling.
-
-    Args:
-      view_url: the URL for the video on YouTube (the one you browse to).
-
-    Returns:
-      Tuple (url, vid_id, title, ext) representing file URL, unique ID
-        ID, simple video title, and extension for the video file,
-        respectively.
-    """
-    info = self.extractor.extract(view_url)
-
-    return (info['url'], info['id'], info['stitle'], info['ext'])
-
   def search_and_download(self, search_terms):
     view_url = self.get_watch_url(search_terms)
     self.download(view_url)
 
-  def download(self, view_url):
-    url, vid_id, simpletitle, ext = self.extract_video_info(view_url)
-
+  def download(self, url):
     if self.high_quality:
-      url += '&fmt=18'
       final_ext = 'm4a'
     else:
       final_ext = 'mp3'
 
     self.vprint('Video URL: ' + url)
-    basename = '%s%s_%s.' % (self.cachedir, simpletitle, vid_id)
-    filename = basename+ext
-    finalname = basename+final_ext
 
     # System default in Windows (and pray it adds to playlist!)
     if 'win' in sys.platform:
@@ -213,10 +184,8 @@ class LuckyTubes(object):
       # TODO: configurable player...
       player = 'amarok '
 
-    if self.fetch_video(url, filename, finalname):
-      os.system(player + finalname)
-    else:  # assume we at least got FLV
-      os.system(player + filename)
+    finalname = self.fetch_video(url, final_ext)
+    os.system(player + finalname)
 
 
 def main(argv):

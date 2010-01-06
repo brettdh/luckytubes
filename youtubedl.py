@@ -13,10 +13,12 @@ import os.path
 import re
 import socket
 import string
+import subprocess
 import sys
 import time
 import urllib
 import urllib2
+import urlparse
 
 std_headers = {
 	'User-Agent': 'Mozilla/5.0 (Windows; U; Windows NT 6.0; en-US; rv:1.9.1.2) Gecko/20090729 Firefox/3.5.2',
@@ -390,21 +392,52 @@ class FileDownloader(object):
 			if info is None:
 				break
 	
-	def _do_download(self, filename, url):
-		stream = None
-		open_mode = 'ab'
+	def _download_with_rtmpdump(self, filename, url):
+		self.report_destination(filename)
 
+		# Check for rtmpdump first
+		try:
+			subprocess.call(['rtmpdump', '-h'], stdout=(file(os.path.devnull, 'w')), stderr=subprocess.STDOUT)
+		except (OSError, IOError):
+			self.trouble(u'ERROR: RTMP download detected but "rtmpdump" could not be run')
+			return False
+
+		# Download using rtmpdump. rtmpdump returns exit code 2 when
+		# the connection was interrumpted and resuming appears to be
+		# possible. This is part of rtmpdump's normal usage, AFAIK.
+		retval = subprocess.call(['rtmpdump', '-q', '-r', url, '-o', filename] + [[], ['-e']][self.params.get('continuedl', False)])
+		while retval == 2:
+			self.to_stdout(u'\r[rtmpdump] %s bytes' % os.path.getsize(filename), skip_eol=True)
+			time.sleep(2.0) # This seems to be needed
+			retval = subprocess.call(['rtmpdump', '-q', '-e', '-r', url, '-o', filename])
+		if retval == 0:
+			self.to_stdout(u'\r[rtmpdump] %s bytes' % os.path.getsize(filename))
+			return True
+		else:
+			self.trouble('ERROR: rtmpdump exited with code %d' % retval)
+			return False
+
+	def _do_download(self, filename, url):
+		# Attempt to download using rtmpdump
+		if url.startswith('rtmp'):
+			return self._download_with_rtmpdump(filename, url)
+
+		stream = None
+		open_mode = 'wb'
 		basic_request = urllib2.Request(url, None, std_headers)
 		request = urllib2.Request(url, None, std_headers)
 
-		# Attempt to resume download with "continuedl" option
+		# Establish possible resume length
 		if os.path.isfile(filename):
 			resume_len = os.path.getsize(filename)
 		else:
 			resume_len = 0
+
+		# Request parameters in case of being able to resume
 		if self.params.get('continuedl', False) and resume_len != 0:
 			self.report_resuming_byte(resume_len)
 			request.add_header('Range','bytes=%d-' % resume_len)
+			open_mode = 'ab'
 
 		# Establish connection
 		try:
@@ -412,12 +445,16 @@ class FileDownloader(object):
 		except (urllib2.HTTPError, ), err:
 			if err.code != 416: #  416 is 'Requested range not satisfiable'
 				raise
+			# Unable to resume
 			data = urllib2.urlopen(basic_request)
 			content_length = data.info()['Content-Length']
+
 			if content_length is not None and long(content_length) == resume_len:
+				# Because the file had already been fully downloaded
 				self.report_file_already_downloaded(filename)
 				return True
 			else:
+				# Because the server didn't let us
 				self.report_unable_to_resume()
 				open_mode = 'wb'
 
@@ -530,12 +567,13 @@ class YoutubeIE(InfoExtractor):
 	_LOGIN_URL = 'http://www.youtube.com/signup?next=/&gl=US&hl=en'
 	_AGE_URL = 'http://www.youtube.com/verify_age?next_url=/&gl=US&hl=en'
 	_NETRC_MACHINE = 'youtube'
-	_available_formats = ['22', '35', '18', '5', '17', '13', None] # listed in order of priority for -b flag
+	_available_formats = ['37', '22', '35', '18', '5', '17', '13', None] # listed in order of priority for -b flag
 	_video_extensions = {
 		'13': '3gp',
 		'17': 'mp4',
 		'18': 'mp4',
 		'22': 'mp4',
+		'37': 'mp4',
 	}
 
 	@staticmethod
@@ -588,6 +626,10 @@ class YoutubeIE(InfoExtractor):
 	def report_unavailable_format(self, video_id, format):
 		"""Report extracted video URL."""
 		self._downloader.to_stdout(u'[youtube] %s: Format %s not available' % (video_id, format))
+	
+	def report_rtmp_download(self):
+		"""Indicate the download will use the RTMP protocol."""
+		self._downloader.to_stdout(u'[youtube] RTMP download detected')
 	
 	def _real_initialize(self):
 		if self._downloader is None:
@@ -687,43 +729,45 @@ class YoutubeIE(InfoExtractor):
 			try:
 				self.report_video_info_webpage_download(video_id)
 				video_info_webpage = urllib2.urlopen(request).read()
+				video_info = urlparse.parse_qs(video_info_webpage)
 			except (urllib2.URLError, httplib.HTTPException, socket.error), err:
 				self._downloader.trouble(u'ERROR: unable to download video info webpage: %s' % str(err))
 				return
 			self.report_information_extraction(video_id)
 
 			# "t" param
-			mobj = re.search(r'(?m)&token=([^&]+)(?:&|$)', video_info_webpage)
-			if mobj is None:
+			if 'token' not in video_info:
 				# Attempt to see if YouTube has issued an error message
-				mobj = re.search(r'(?m)&reason=([^&]+)(?:&|$)', video_info_webpage)
-				if mobj is None:
+				if 'reason' not in video_info:
 					self._downloader.trouble(u'ERROR: unable to extract "t" parameter for unknown reason')
 					stream = open('reportme-ydl-%s.dat' % time.time(), 'wb')
 					stream.write(video_info_webpage)
 					stream.close()
 				else:
-					reason = urllib.unquote_plus(mobj.group(1))
+					reason = urllib.unquote_plus(video_info['reason'][0])
 					self._downloader.trouble(u'ERROR: YouTube said: %s' % reason.decode('utf-8'))
 				return
-			token = urllib.unquote(mobj.group(1))
+			token = urllib.unquote_plus(video_info['token'][0])
 			video_real_url = 'http://www.youtube.com/get_video?video_id=%s&t=%s&eurl=&el=detailpage&ps=default&gl=US&hl=en' % (video_id, token)
 			if format_param is not None:
 				video_real_url = '%s&fmt=%s' % (video_real_url, format_param)
 
+			# Check possible RTMP download
+			if 'conn' in video_info and video_info['conn'][0].startswith('rtmp'):
+				self.report_rtmp_download()
+				video_real_url = video_info['conn'][0]
+
 			# uploader
-			mobj = re.search(r'(?m)&author=([^&]+)(?:&|$)', video_info_webpage)
-			if mobj is None:
+			if 'author' not in video_info:
 				self._downloader.trouble(u'ERROR: unable to extract uploader nickname')
 				return
-			video_uploader = urllib.unquote(mobj.group(1))
+			video_uploader = urllib.unquote_plus(video_info['author'][0])
 
 			# title
-			mobj = re.search(r'(?m)&title=([^&]*)(?:&|$)', video_info_webpage)
-			if mobj is None:
+			if 'title' not in video_info:
 				self._downloader.trouble(u'ERROR: unable to extract video title')
 				return
-			video_title = urllib.unquote(mobj.group(1))
+			video_title = urllib.unquote_plus(video_info['title'][0])
 			video_title = video_title.decode('utf-8')
 			video_title = re.sub(ur'(?u)&(.+?);', self.htmlentity_transform, video_title)
 			video_title = video_title.replace(os.sep, u'%')
@@ -734,17 +778,16 @@ class YoutubeIE(InfoExtractor):
 
 			try:
 				# Process video information
-				info = {
+				self._downloader.process_info({
 					'id':		video_id.decode('utf-8'),
 					'url':		video_real_url.decode('utf-8'),
 					'uploader':	video_uploader.decode('utf-8'),
 					'title':	video_title,
 					'stitle':	simple_title,
 					'ext':		video_extension.decode('utf-8'),
-                                        }
-                                self._downloader.process_info(info)
+				})
 
-				return info
+				return
 
 			except UnavailableFormatError, err:
 				if best_quality:
@@ -868,7 +911,7 @@ class MetacafeIE(InfoExtractor):
 			return
 		video_title = mobj.group(1).decode('utf-8')
 
-		mobj = re.search(r'(?ms)<li id="ChnlUsr">.*?Submitter:.*?<a .*?>(.*?)<', webpage)
+		mobj = re.search(r'(?ms)By:\s*<a .*?>(.+?)<', webpage)
 		if mobj is None:
 			self._downloader.trouble(u'ERROR: unable to extract uploader nickname')
 			return
@@ -1037,6 +1080,61 @@ class YoutubePlaylistIE(InfoExtractor):
 			self._youtube_ie.extract('http://www.youtube.com/watch?v=%s' % id)
 		return
 
+class YoutubeUserIE(InfoExtractor):
+	"""Information Extractor for YouTube users."""
+
+	_VALID_URL = r'(?:http://)?(?:\w+\.)?youtube.com/user/(.*)'
+	_TEMPLATE_URL = 'http://gdata.youtube.com/feeds/api/users/%s'
+	_VIDEO_INDICATOR = r'http://gdata.youtube.com/feeds/api/videos/(.*)' # XXX Fix this.
+	_youtube_ie = None
+
+	def __init__(self, youtube_ie, downloader=None):
+		InfoExtractor.__init__(self, downloader)
+		self._youtube_ie = youtube_ie
+	
+	@staticmethod
+	def suitable(url):
+		return (re.match(YoutubeUserIE._VALID_URL, url) is not None)
+
+	def report_download_page(self, username):
+		"""Report attempt to download user page."""
+		self._downloader.to_stdout(u'[youtube] user %s: Downloading page ' % (username))
+
+	def _real_initialize(self):
+		self._youtube_ie.initialize()
+	
+	def _real_extract(self, url):
+		# Extract username
+		mobj = re.match(self._VALID_URL, url)
+		if mobj is None:
+			self._downloader.trouble(u'ERROR: invalid url: %s' % url)
+			return
+
+		# Download user page
+		username = mobj.group(1)
+		video_ids = []
+		pagenum = 1
+
+		self.report_download_page(username)
+		request = urllib2.Request(self._TEMPLATE_URL % (username), None, std_headers)
+		try:
+			page = urllib2.urlopen(request).read()
+		except (urllib2.URLError, httplib.HTTPException, socket.error), err:
+			self._downloader.trouble(u'ERROR: unable to download webpage: %s' % str(err))
+			return
+
+		# Extract video identifiers
+		ids_in_page = []
+
+		for mobj in re.finditer(self._VIDEO_INDICATOR, page):
+			if mobj.group(1) not in ids_in_page:
+				ids_in_page.append(mobj.group(1))
+		video_ids.extend(ids_in_page)
+
+		for id in video_ids:
+			self._youtube_ie.extract('http://www.youtube.com/watch?v=%s' % id)
+		return
+
 class PostProcessor(object):
 	"""Post Processor class.
 
@@ -1084,11 +1182,27 @@ class PostProcessor(object):
 		return information # by default, do nothing
 	
 ### MAIN PROGRAM ###
-if __name__ == '__main__':
+def main(argv):
 	try:
 		# Modules needed only when running the main program
 		import getpass
 		import optparse
+
+		# Function to update the program file with the latest version from bitbucket.org
+		def update_self(downloader, filename):
+			# Note: downloader only used for options
+			if not os.access (filename, os.W_OK):
+				sys.exit('ERROR: no write permissions on %s' % filename)
+
+			downloader.to_stdout('Updating to latest stable version...')
+			latest_url = 'http://bitbucket.org/rg3/youtube-dl/raw/tip/LATEST_VERSION'
+			latest_version = urllib.urlopen(latest_url).read().strip()
+			prog_url = 'http://bitbucket.org/rg3/youtube-dl/raw/%s/youtube-dl' % latest_version
+			newcontent = urllib.urlopen(prog_url).read()
+			stream = open(filename, 'w')
+			stream.write(newcontent)
+			stream.close()
+			downloader.to_stdout('Updated to version %s' % latest_version)
 
 		# General configuration
 		urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
@@ -1098,7 +1212,7 @@ if __name__ == '__main__':
 		# Parse command line
 		parser = optparse.OptionParser(
 			usage='Usage: %prog [options] url...',
-			version='INTERNAL',
+			version='2010.01.05',
 			conflict_handler='resolve',
 		)
 
@@ -1106,6 +1220,8 @@ if __name__ == '__main__':
 				action='help', help='print this help text and exit')
 		parser.add_option('-v', '--version',
 				action='version', help='print program version and exit')
+		parser.add_option('-U', '--update',
+				action='store_true', dest='update_self', help='update this program to latest stable version')
 		parser.add_option('-i', '--ignore-errors',
 				action='store_true', dest='ignoreerrors', help='continue on download errors', default=False)
 		parser.add_option('-r', '--rate-limit',
@@ -1157,8 +1273,8 @@ if __name__ == '__main__':
 				action='store_true', dest='continue_dl', help='resume partially downloaded files', default=False)
 		parser.add_option_group(filesystem)
 
-		(opts, args) = parser.parse_args()
-
+		(opts, args) = parser.parse_args(argv)
+        
 		# Batch file verification
 		batchurls = []
 		if opts.batchfile is not None:
@@ -1171,8 +1287,6 @@ if __name__ == '__main__':
 		all_urls = batchurls + args
 
 		# Conflicting, missing and erroneous options
-		if len(all_urls) < 1:
-			parser.error(u'you must provide at least one URL')
 		if opts.usenetrc and (opts.username is not None or opts.password is not None):
 			parser.error(u'using .netrc conflicts with giving username/password')
 		if opts.password is not None and opts.username is None:
@@ -1193,6 +1307,7 @@ if __name__ == '__main__':
 		youtube_ie = YoutubeIE()
 		metacafe_ie = MetacafeIE(youtube_ie)
 		youtube_pl_ie = YoutubePlaylistIE(youtube_ie)
+		youtube_user_ie = YoutubeUserIE(youtube_ie)
 		youtube_search_ie = YoutubeSearchIE(youtube_ie)
 
 		# File downloader
@@ -1216,10 +1331,22 @@ if __name__ == '__main__':
 			})
 		fd.add_info_extractor(youtube_search_ie)
 		fd.add_info_extractor(youtube_pl_ie)
+		fd.add_info_extractor(youtube_user_ie)
 		fd.add_info_extractor(metacafe_ie)
 		fd.add_info_extractor(youtube_ie)
+
+		# Update version
+		if opts.update_self:
+			update_self(fd, sys.argv[0])
+
+		# Maybe do nothing
+		if len(all_urls) < 1:
+			if not opts.update_self:
+				parser.error(u'you must provide at least one URL')
+			else:
+				sys.exit()
 		retcode = fd.download(all_urls)
-		sys.exit(retcode)
+		return retcode
 
 	except DownloadError:
 		sys.exit(1)
@@ -1227,3 +1354,6 @@ if __name__ == '__main__':
 		sys.exit(u'ERROR: fixed output name but more than one file to download')
 	except KeyboardInterrupt:
 		sys.exit(u'\nERROR: Interrupted by user')
+
+if __name__ == '__main__':
+        main(sys.argv[1:])
