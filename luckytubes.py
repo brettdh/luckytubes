@@ -78,7 +78,7 @@ def daemonize():
 
 class LuckyTubes(object):
   """Handle to LuckyTubes "service"."""
-  def __init__(self, quiet, cachedir, high_quality):
+  def __init__(self, quiet, cachedir, high_quality, override_ext):
     """Inits LuckyTubes with options.
     
     Args:
@@ -91,6 +91,7 @@ class LuckyTubes(object):
     self.quiet = quiet
     self.cachedir = cachedir
     self.high_quality = high_quality
+    self.override_ext = override_ext
 
   def vprint(self, out):
     """Print only if not quiet."""
@@ -171,10 +172,13 @@ class LuckyTubes(object):
     self.download(view_url)
 
   def download(self, url):
-    if self.high_quality:
+    if self.override_ext is not None:
+      final_ext = self.override_ext
+    elif self.high_quality:
       final_ext = 'm4a'
     else:
       final_ext = 'mp3'
+
 
     self.vprint('Video URL: ' + url)
 
@@ -203,6 +207,7 @@ def main(argv):
                     action='store_true', help='Use high-quality video')
   parser.add_option('-y', '--by-url', dest='by_url', action='store_true',
                     help='Don\'t search, just download by URL')
+  parser.add_option('-e', '--override-extension', dest='override_ext')
   parser.add_option('--cache', dest='cachedir',
       help='Directory to cache downloaded video/audio',
       default=os.path.expanduser(os.path.join('~', '.luckytubes', '')))
@@ -215,7 +220,8 @@ def main(argv):
     
   lt = LuckyTubes(quiet=options.quiet,
                   cachedir=options.cachedir,
-                  high_quality=options.high_quality)
+                  high_quality=options.high_quality,
+                  override_ext=options.override_ext)
 
   terms = ' '.join(args)
   if options.url_only:
