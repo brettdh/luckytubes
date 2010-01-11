@@ -117,7 +117,10 @@ class LuckyTubes(object):
 
     oldstdout = sys.stdout
     sys.stdout = io = StringIO()
-    youtubedl.main(['-t', url])
+    ytdl_opts = ['-t', url]
+    if self.high_quality:
+      ytdl_opts.append('-b')
+    youtubedl.main(ytdl_opts)
 
     video_filename = None
     DEST_PREFIX = '[download] Destination: '
