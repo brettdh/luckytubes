@@ -9,7 +9,7 @@ import re
 import urlparse
 
 lt = luckytubes.LuckyTubes(quiet=True, cachedir='/home/swolchok/.lturl',
-                           high_quality=False)
+                           high_quality=False, override_ext=None)
 
 # Mitigate funny business slightly.
 lt.download = lt.search_and_download = None
