@@ -26,7 +26,9 @@ import sys
 import urllib
 
 import gdata.youtube.service
-import youtubedl
+#import youtubedl
+
+from subprocess import Popen, PIPE
 
 VIDEO_SEARCH_URL = 'http://gdata.youtube.com/feeds/api/' + \
     'videos?q=%s&max-results=10&v=2'
@@ -92,6 +94,7 @@ class LuckyTubes(object):
     self.cachedir = cachedir
     self.high_quality = high_quality
     self.override_ext = override_ext
+    self.script_dir = os.getcwd()
 
   def vprint(self, out):
     """Print only if not quiet."""
@@ -116,22 +119,22 @@ class LuckyTubes(object):
 
     os.chdir(self.cachedir)
 
-    oldstdout = sys.stdout
-    sys.stdout = io = StringIO()
-    ytdl_opts = ['-t', url]
+    #io = StringIO()
+    ytdl_opts = ['python', self.script_dir + '/youtubedl.py', '-t', url]
     if self.high_quality:
       ytdl_opts.append('-b')
-    youtubedl.main(ytdl_opts)
+    #youtubedl.main()
+    ytdl = Popen(ytdl_opts, stdout=PIPE)
+    ytdl_stdoutput, ytdl_stderr = ytdl.communicate()
 
     video_filename = None
     DEST_PREFIX = '[download] Destination: '
-    for line in io.getvalue().split('\n'):
+    for line in ytdl_stdoutput.split('\n'):
       if line.startswith(DEST_PREFIX):
         video_filename = line[len(DEST_PREFIX):].strip()
         break
-    sys.stdout = oldstdout
-    print io.getvalue()
-    io.close()
+    #print io.getvalue()
+    #io.close()
 
     final_filename = video_filename[:-3] + final_ext
 
@@ -182,8 +185,11 @@ class LuckyTubes(object):
 
     self.vprint('Video URL: ' + url)
 
-    # System default in Windows (and pray it adds to playlist!)
-    if 'win' in sys.platform:
+    if 'darwin' in sys.platform:
+      player = 'open '
+      os.system('open ' + self.cachedir)
+    elif 'win' in sys.platform:
+      # System default in Windows (and pray it adds to playlist!)
       player = 'start '
       # Show them the download.
       os.system('start ' + self.cachedir)
