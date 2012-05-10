@@ -138,7 +138,9 @@ class LuckyTubes(object):
 
     final_filename = video_filename[:-3] + final_ext
 
-    if os.system('ffmpeg -i %s -vn -acodec copy %s' % (video_filename, final_filename)) != 0:
+    #ffmpeg_cmd = 'ffmpeg -i %s -vn -acodec copy %s' % (video_filename, final_filename)
+    ffmpeg_cmd = 'ffmpeg -i %s -vn -ab 192000 -f mp3 %s' % (video_filename, final_filename)
+    if os.system(ffmpeg_cmd) != 0:
       return None
     else:
       return final_filename
@@ -172,7 +174,7 @@ class LuckyTubes(object):
 
   def search_and_download(self, search_terms):
     view_url = self.get_watch_url(search_terms)
-    self.download(view_url)
+    return self.download(view_url)
 
   def download(self, url):
     if self.override_ext is not None:
@@ -182,9 +184,12 @@ class LuckyTubes(object):
     else:
       final_ext = 'mp3'
 
-
     self.vprint('Video URL: ' + url)
 
+    finalname = self.fetch_video(url, final_ext)
+    return finalname
+  
+  def play(self, finalname):
     if 'darwin' in sys.platform:
       player = 'open '
       os.system('open ' + self.cachedir)
@@ -196,8 +201,6 @@ class LuckyTubes(object):
     else:
       # TODO: configurable player...
       player = 'amarok '
-
-    finalname = self.fetch_video(url, final_ext)
     os.system(player + finalname)
 
 
@@ -217,6 +220,8 @@ def main(argv):
   parser.add_option('--cache', dest='cachedir',
       help='Directory to cache downloaded video/audio',
       default=os.path.expanduser(os.path.join('~', '.luckytubes', '')))
+  parser.add_option('-p', '--play', dest='play',
+                    help="Play the audio file after it is generated.")
 
   (options, args) = parser.parse_args(argv)
 
@@ -232,10 +237,14 @@ def main(argv):
   terms = ' '.join(args)
   if options.url_only:
     print lt.get_watch_url(terms)
+    sys.exit(0)
   elif options.by_url:
-    lt.download(terms)
+    filename = lt.download(terms)
   else:
-    lt.search_and_download(terms)
+    filename = lt.search_and_download(terms)
+
+  if options.play:
+    lt.play(filename)
 
 if __name__ == '__main__':
   if len(sys.argv) < 2:
